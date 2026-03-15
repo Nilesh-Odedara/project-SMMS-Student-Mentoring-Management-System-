@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { students } from "../data/dummyData";
+// import { students } from "../data/dummyData";
 
 function Students() {
   const navigate = useNavigate();

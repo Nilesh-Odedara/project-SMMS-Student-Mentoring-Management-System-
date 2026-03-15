@@ -1,22 +1,60 @@
 //Login page
 
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff, Shield, User, GraduationCap } from "lucide-react";
+import api from "../api";
 
 function Login() {
   const navigate = useNavigate();
 
   const [role, setRole] = useState("ADMIN");
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  // Clear stale data on mount
+  React.useEffect(() => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("role");
+    localStorage.removeItem("userId");
+  }, []);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
 
-    // frontend-only role storage
-    // frontend-only role storage
-    localStorage.setItem("role", role);
-    navigate("/dashboard");
+    try {
+      // Determine endpoint based on role
+      const endpoint = role === "STUDENT" ? "/student/login" : "/staff/login";
+      
+      const response = await api.post(endpoint, {
+        EmailAddress: email,
+        Password: password
+      });
+
+      if (response.data.token) {
+        // Save auth data
+        localStorage.setItem("accessToken", response.data.token);
+        localStorage.setItem("refreshToken", response.data.refreshToken);
+        localStorage.setItem("role", role);
+        if (response.data.userId) {
+          localStorage.setItem("userId", response.data.userId);
+        }
+        
+        navigate("/dashboard");
+      } else {
+        setError(response.data.message || "Login failed");
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.response?.data?.err || "An error occurred during login");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const roles = [
@@ -36,6 +74,11 @@ function Login() {
           </div>
 
           <form onSubmit={handleLogin}>
+            {error && (
+              <div className="alert alert-danger" role="alert">
+                {error}
+              </div>
+            )}
 
             {/* Role Selection */}
             <div className="mb-4">
@@ -65,6 +108,8 @@ function Login() {
                 className="form-control"
                 id="emailInput"
                 placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
               <label htmlFor="emailInput">
@@ -80,6 +125,8 @@ function Login() {
                 className="form-control"
                 id="passwordInput"
                 placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
               />
               <label htmlFor="passwordInput">
@@ -100,12 +147,13 @@ function Login() {
             <button
               type="submit"
               className="btn btn-primary w-100 mb-4 shadow-sm"
+              disabled={loading}
             >
-              Sign In
+              {loading ? "Signing In..." : "Sign In"}
             </button>
 
             <div className="text-center">
-              <span className="text-muted small">© 2026 Copyright</span>
+              <span className="text-muted small">Don't have an account? <Link to="/register" className="text-primary text-decoration-none">Sign Up</Link></span>
             </div>
 
           </form>

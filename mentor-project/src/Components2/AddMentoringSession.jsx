@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import api from "../api";
 import {
   ArrowLeft,
   Save,
@@ -172,20 +173,17 @@ function AddMentoringSession() {
     const fetchData = async () => {
       try {
         const [studentsRes, staffRes] = await Promise.all([
-          fetch("http://localhost:3000/student"),
-          fetch("http://localhost:3000/staff")
+          api.get("/student"),
+          api.get("/staff")
         ]);
-        const studentsData = await studentsRes.json();
-        const staffData = await staffRes.json();
+        const studentsData = studentsRes.data;
+        const staffData = staffRes.data;
 
-        if (studentsRes.ok) {
-          const arr = Array.isArray(studentsData) ? studentsData : studentsData.student ? (Array.isArray(studentsData.student) ? studentsData.student : [studentsData.student]) : [];
-          setStudentsList(arr);
-        }
-        if (staffRes.ok) {
-          const arr = Array.isArray(staffData) ? staffData : staffData.staff ? (Array.isArray(staffData.staff) ? staffData.staff : [staffData.staff]) : [];
-          setStaffList(arr);
-        }
+        const arr = Array.isArray(studentsData) ? studentsData : studentsData.student ? (Array.isArray(studentsData.student) ? studentsData.student : [studentsData.student]) : [];
+        setStudentsList(arr);
+
+        const arrStaff = Array.isArray(staffData) ? staffData : staffData.staff ? (Array.isArray(staffData.staff) ? staffData.staff : [staffData.staff]) : [];
+        setStaffList(arrStaff);
       } catch (err) {
         console.error("Error fetching data:", err);
       }
@@ -199,9 +197,9 @@ function AddMentoringSession() {
     const fetchSession = async () => {
       setFetchingSession(true);
       try {
-        const res = await fetch(`http://localhost:3000/studentmentoring/${editId}`);
-        const data = await res.json();
-        if (res.ok && data.studentMentoring) {
+        const res = await api.get(`/studentmentoring/${editId}`);
+        const data = res.data;
+        if (data.studentMentoring) {
           const s = data.studentMentoring;
           const formatDate = (d) => {
             if (!d) return "";
@@ -262,14 +260,15 @@ function AddMentoringSession() {
         : "http://localhost:3000/studentMentoring";
       const method = isEditMode ? "PATCH" : "POST";
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+      let res;
+      if (isEditMode) {
+        res = await api.patch(url, payload);
+      } else {
+        res = await api.post(url, payload);
+      }
 
-      const data = await res.json();
-      if (res.ok) {
+      const data = res.data;
+      if (res.status === 200 || res.status === 201) {
         alert(isEditMode ? "Session Updated Successfully!" : "Session Logged Successfully!");
         navigate(isEditMode ? `/mentoring/view/${editId}` : -1);
       } else {

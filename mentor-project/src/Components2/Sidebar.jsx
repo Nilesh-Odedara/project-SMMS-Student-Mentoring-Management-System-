@@ -19,10 +19,13 @@ function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState("STUDENT"); // Default safe
+  const [userId, setUserId] = useState("1"); // Default
 
   useEffect(() => {
     const role = localStorage.getItem("role");
+    const id = localStorage.getItem("userId");
     if (role) setUserRole(role);
+    if (id) setUserId(id);
   }, []);
 
   // Menu Configuration with Role Access
@@ -54,13 +57,13 @@ function Sidebar() {
     {
       label: "My Profile",
       icon: User,
-      path: "/mentor/1", // Hardcoded ID for now (simulating logged in user)
+      path: `/mentor/${userId}`,
       allowedRoles: ["MENTOR"]
     },
     {
       label: "My Profile",
       icon: User,
-      path: "/student/1",
+      path: `/student/${userId}`,
       allowedRoles: ["STUDENT"]
     },
     {
@@ -73,6 +76,9 @@ function Sidebar() {
 
   const handleLogout = () => {
     localStorage.removeItem("role"); // Clear role on logout
+    localStorage.removeItem("userId");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
     navigate("/login");
   };
 

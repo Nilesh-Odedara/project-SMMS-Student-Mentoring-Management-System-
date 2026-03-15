@@ -54,7 +54,7 @@
 //COMPONENTS2
 
 import React from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 
 import Layout from './Components2/AdminLayout'
 import AdminDashboard from './Components2/AdminDashboard'
@@ -69,7 +69,8 @@ import MyMentor from './Components2/MyMentor'
 import Reports from './Components2/Reports'
 // import Login from "./Components2/Login";
 // import RoleGuard from "./Components2/RoleGuard";
-import Login from './Components2/login'
+import Login from './Components2/Login'
+import Register from './Components2/Register'
 // import Login from './Components2/login'
 import AdminLayout from './Components2/AdminLayout'
 import Feedback from './Components2/Feedback'
@@ -85,15 +86,16 @@ function App() {
       <Routes>
 
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
-        {/* ADMIN */}
+        {/* PROTECTED LAYOUT */}
         <Route
-          path="/" element={<AdminLayout />}
-        // element={
-        //     <RoleGuard allowedRole="ADMIN">
-        //         <Layout />
-        //     </RoleGuard>
-        // }
+          path="/"
+          element={
+            <RoleGuard allowedRoles={["ADMIN", "MENTOR", "STUDENT"]}>
+              <AdminLayout />
+            </RoleGuard>
+          }
         >
 
           {/* SHARED DASHBOARD - Accessible by All (Sidebar Filters Content) */}
@@ -201,6 +203,7 @@ function App() {
                     }
                 /> */}
 
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
 
     </BrowserRouter>

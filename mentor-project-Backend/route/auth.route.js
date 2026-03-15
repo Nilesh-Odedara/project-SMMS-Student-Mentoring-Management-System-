@@ -36,17 +36,19 @@ Auth.post("/student/register",async (req,res)=>{
 
 Auth.post("/student/login",async(req,res)=>{
     try{
-        const {StudentName,Password} = req.body
-        const student = await Student.findOne({StudentName})
+        const {EmailAddress,Password} = req.body
+        const student = await Student.findOne({EmailAddress})
 
         if(!student) return res.json({message:"student not exists"})
         const isMatch = await bcrypt.compare(Password,student.Password)
+        const isPlaintextMatch = Password === student.Password;
 
-        if(!isMatch) return res.status(401).json({message:"Invalid credential"})
+        if(!isMatch && !isPlaintextMatch) return res.status(401).json({message:"Invalid credential"})
 
-        const token = jwt.sign({id:student._id},process.env.JWT_SECRET_KEY,{expiresIn:"30m"})
+        const token = jwt.sign({id:student._id},process.env.JWT_SECRET_KEY,{expiresIn:"15m"})
+        const refreshToken = jwt.sign({id:student._id},process.env.JWT_SECRET_KEY,{expiresIn:"7d"})
         
-        res.status(200).json({message:"login successfully",token})
+        res.status(200).json({message:"login successfully", token, refreshToken, userId: student._id})
     }catch(err){
         res.status(400).json({err : err.message})
     }
@@ -85,22 +87,41 @@ Auth.post("/staff/register",async (req,res)=>{
 
 Auth.post("/staff/login",async(req,res)=>{
     try{
-        const {StaffName,Password} = req.body
-        const staff = await Staff.findOne({StaffName})
+        const {EmailAddress,Password} = req.body
+        const staff = await Staff.findOne({EmailAddress})
 
-        if(!staff) return res.json({message:"student not exists"})
+        if(!staff) return res.json({message:"staff not exists"})
         console.log(staff.Password)
         const isMatch = await bcrypt.compare(Password,staff.Password)
+        const isPlaintextMatch = Password === staff.Password;
 
-        if(!isMatch) return res.status(401).json({message:"Invalid credential"})
+        if(!isMatch && !isPlaintextMatch) return res.status(401).json({message:"Invalid credential"})
 
-        const token = jwt.sign({id:staff._id},process.env.JWT_SECRET_KEY,{expiresIn:"30m"})
+        const token = jwt.sign({id:staff._id},process.env.JWT_SECRET_KEY,{expiresIn:"15m"})
+        const refreshToken = jwt.sign({id:staff._id},process.env.JWT_SECRET_KEY,{expiresIn:"7d"})
         
-        res.status(200).json({message:"login successfully",token})
+        res.status(200).json({message:"login successfully", token, refreshToken, userId: staff._id})
     }catch(err){
         res.status(400).json({err : err.message})
     }
 })
+
+Auth.post("/refresh-token", async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+        if (!refreshToken) return res.status(401).json({ message: "Refresh token not provided" });
+
+        jwt.verify(refreshToken, process.env.JWT_SECRET_KEY, (err, decoded) => {
+            if (err) return res.status(403).json({ message: "Invalid or expired refresh token" });
+
+            // Issue a new access token
+            const newToken = jwt.sign({ id: decoded.id }, process.env.JWT_SECRET_KEY, { expiresIn: "15m" });
+            res.status(200).json({ token: newToken });
+        });
+    } catch (err) {
+        res.status(400).json({ err: err.message });
+    }
+});
 
 
 module.exports = Auth

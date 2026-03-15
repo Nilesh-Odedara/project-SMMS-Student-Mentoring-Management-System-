@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../api";
 
 function Mentors() {
   const navigate = useNavigate();
@@ -9,12 +10,9 @@ function Mentors() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:3000/staff")
+    api.get("/staff")
       .then(res => {
-        if (!res.ok) throw new Error("Failed to fetch staff");
-        return res.json();
-      })
-      .then(data => {
+        const data = res.data;
         setMentors(data.staff || []);
         setError("");
       })

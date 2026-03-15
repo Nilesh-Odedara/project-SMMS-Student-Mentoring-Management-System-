@@ -23,6 +23,9 @@ const Navbar = ({ onToggleSidebar }) => {
 
   const handleLogout = () => {
     localStorage.removeItem("role");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
     navigate("/login");
   };
 
@@ -36,8 +39,9 @@ const Navbar = ({ onToggleSidebar }) => {
   };
 
   const getProfileLink = () => {
-    if (role === "STUDENT") return "/student/1";
-    if (role === "MENTOR") return "/mentor/1";
+    const userId = localStorage.getItem("userId") || 1;
+    if (role === "STUDENT") return `/student/${userId}`;
+    if (role === "MENTOR") return `/mentor/${userId}`;
     return "#";
   };
 

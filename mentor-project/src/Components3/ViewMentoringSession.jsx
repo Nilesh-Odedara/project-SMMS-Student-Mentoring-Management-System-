@@ -1,6 +1,6 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { mentoringSessions } from "../data/dummyData";
+// import { mentoringSessions } from "../data/dummyData";
 
 function ViewMentoringSession() {
   const { id } = useParams();

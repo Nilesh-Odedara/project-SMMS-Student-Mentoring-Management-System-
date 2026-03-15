@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import api from "../api";
 import {
   ArrowLeft,
   User,
@@ -27,9 +28,9 @@ function MyStudent() {
     const fetchData = async () => {
       try {
         // Fetch student details
-        const studentRes = await fetch(`http://localhost:3000/student/${id}`);
-        const studentData = await studentRes.json();
-        if (!studentRes.ok || !studentData.student) {
+        const studentRes = await api.get(`/student/${id}`);
+        const studentData = studentRes.data;
+        if (!studentData.student) {
           setError(studentData.message || "Student not found.");
           setLoading(false);
           return;
@@ -58,9 +59,9 @@ function MyStudent() {
         });
 
         // Fetch mentoring sessions for this student
-        const sessionsRes = await fetch(`http://localhost:3000/studentMentoring`);
-        const sessionsData = await sessionsRes.json();
-        if (sessionsRes.ok && sessionsData.studentMentoring) {
+        const sessionsRes = await api.get(`/studentMentoring`);
+        const sessionsData = sessionsRes.data;
+        if (sessionsData.studentMentoring) {
           const filtered = sessionsData.studentMentoring.filter(
             (session) => String(session.StudentMentorId) === String(s.studentId)
           );

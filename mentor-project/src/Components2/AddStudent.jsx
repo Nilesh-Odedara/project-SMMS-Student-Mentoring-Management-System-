@@ -193,6 +193,7 @@
 
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../api";
 import { ArrowLeft, Save, User, Mail, Phone, BookOpen, GraduationCap, UserCheck } from "lucide-react";
 
 function AddStudent() {
@@ -244,15 +245,11 @@ function AddStudent() {
                 Description: `${formData.department} - ${formData.year}${formData.mentor ? ` | Mentor: ${formData.mentor}` : ""}`
             };
 
-            const res = await fetch("http://localhost:3000/student", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
+            const res = await api.post("/student", payload);
 
-            const data = await res.json();
+            const data = res.data;
 
-            if (res.ok) {
+            if (res.status === 200 || res.status === 201) {
                 alert("Student Added Successfully!");
                 navigate("/students");
             } else {

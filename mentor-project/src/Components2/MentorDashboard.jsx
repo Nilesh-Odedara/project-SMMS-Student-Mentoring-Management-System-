@@ -1,16 +1,143 @@
 import React from "react";
 import { Users, Calendar, AlertCircle, CheckCircle2, MoreHorizontal, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import api from "../api";
 
 function MentorDashboard() {
     const navigate = useNavigate();
 
-    const myStudents = [
-        { id: 1, name: "Riya Patel", status: "Active", risk: "Low", lastSession: "2 days ago" },
-        { id: 2, name: "Arjun Mehta", status: "Attention", risk: "Medium", lastSession: "1 week ago" },
-        { id: 3, name: "Sneha Gupta", status: "Active", risk: "Low", lastSession: "Yesterday" },
-        { id: 4, name: "Rohan Kumar", status: "Critical", risk: "High", lastSession: "1 month ago" },
-    ];
+    const [stats, setStats] = React.useState({
+        assignedStudents: 0,
+        sessionsToday: 0,
+        pendingReports: 0
+    });
+    const [myStudents, setMyStudents] = React.useState([]);
+    const [todaySchedule, setTodaySchedule] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                const userId = localStorage.getItem("userId");
+                if (!userId) return;
+
+                const [assignmentsRes, studentsRes, sessionsRes, staffProfileRes] = await Promise.all([
+                    api.get("/studentmentor"),
+                    api.get("/student"),
+                    api.get("/studentmentoring"),
+                    api.get(`/staff/${userId}`)
+                ]);
+
+                const allAssignments = assignmentsRes.data?.studentmentor || assignmentsRes.data?.studentMentor || [];
+                const allStudents = studentsRes.data?.student || [];
+                const allSessions = sessionsRes.data?.studentMentoring || [];
+                const myProfile = staffProfileRes.data?.staff;
+
+                if (!myProfile) {
+                    throw new Error("Staff profile not found.");
+                }
+
+                const myStaffId = myProfile.StaffID;
+
+                const assignmentsArr = Array.isArray(allAssignments) ? allAssignments : [allAssignments];
+                const studentsArr = Array.isArray(allStudents) ? allStudents : [allStudents];
+                const sessionsArr = Array.isArray(allSessions) ? allSessions : [allSessions];
+
+                // Students assigned to this mentor using integer StaffID
+                const myAssignments = assignmentsArr.filter(a => String(a.StaffId) === String(myStaffId));
+                
+                // Map student details
+                const studentsList = myAssignments.map(assignment => {
+                    const studentData = studentsArr.find(s => String(s.studentId ?? s.StudentId ?? s._id) === String(assignment.StudentId ?? assignment.studentId));
+                    
+                    if (!studentData) return null;
+                    
+                    // Find their latest session to determine risk
+                    const studentSessions = sessionsArr.filter(s => String(s.StudentMentorId) === String(assignment.StudentId)); // Assuming StudentMentorId here denotes the student ID based on existing logic 
+                    studentSessions.sort((a, b) => new Date(b.DateOfMentoring || b.createdAt) - new Date(a.DateOfMentoring || a.createdAt));
+                    
+                    const lastSession = studentSessions.length > 0 ? studentSessions[0] : null;
+                    const risk = lastSession ? (lastSession.StressLevel === 'High' ? 'High' : (lastSession.StressLevel === 'Medium' ? 'Medium' : 'Low')) : "Low";
+                    const status = risk === 'High' ? 'Critical' : (risk === 'Medium' ? 'Attention' : 'Active');
+                    
+                    let lastSessionText = "No previous sessions";
+                    if (lastSession) {
+                        const timeAgo = Math.floor((new Date() - new Date(lastSession.createdAt)) / (1000 * 60 * 60 * 24));
+                        lastSessionText = timeAgo === 0 ? "Today" : (timeAgo === 1 ? "Yesterday" : `${timeAgo} days ago`);
+                    }
+
+                    return {
+                        id: studentData.studentId,
+                        name: studentData.StudentName,
+                        status: status,
+                        risk: risk,
+                        lastSession: lastSessionText
+                    };
+                }).filter(Boolean);
+
+                setMyStudents(studentsList);
+
+                // Today's schedule
+                const today = new Date().toISOString().split('T')[0];
+                const myStudentIds = myAssignments.map(a => String(a.StudentId));
+                
+                const sessionsTodayData = [];
+                sessionsArr.forEach(session => {
+                    if (myStudentIds.includes(String(session.StudentMentorId))) { // Check if this session is for one of their students
+                        // Check if session date matches today
+                        const sessionDate = session.DateOfMentoring ? session.DateOfMentoring.toString().split('T')[0] : '';
+                        const scheduledDate = session.ScheduledMeetingDate ? session.ScheduledMeetingDate.toString().split('T')[0] : '';
+                        
+                        if (sessionDate === today || scheduledDate === today) {
+                            const student = studentsArr.find(s => String(s.studentId) === String(session.StudentMentorId));
+                            
+                            // Format time
+                            const dateObj = new Date(session.ScheduledMeetingDate || session.DateOfMentoring || session.createdAt);
+                            let hours = dateObj.getHours();
+                            let ampm = hours >= 12 ? 'PM' : 'AM';
+                            hours = hours % 12;
+                            hours = hours ? hours : 12; // the hour '0' should be '12'
+                            const mins = dateObj.getMinutes().toString().padStart(2, '0');
+                            
+                            sessionsTodayData.push({
+                                id: session._id,
+                                timeStr: `${hours.toString().padStart(2, '0')}:${mins}`,
+                                ampm: ampm,
+                                topic: session.IssuesDiscussed || "Mentoring Session",
+                                studentName: student ? student.StudentName : "Student",
+                                isUrgent: session.StressLevel === 'High'
+                            });
+                        }
+                    }
+                });
+                
+                setTodaySchedule(sessionsTodayData.sort((a,b) => (""+a.timeStr).localeCompare(b.timeStr)));
+
+                setStats({
+                    assignedStudents: myAssignments.length,
+                    sessionsToday: sessionsTodayData.length,
+                    pendingReports: 0 // Placeholder as reports metric implies a separate workflow
+                });
+
+            } catch (err) {
+                console.error("Failed to fetch mentor dashboard data", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDashboardData();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "60vh" }}>
+                <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="container-fluid p-4">
@@ -35,7 +162,7 @@ function MentorDashboard() {
                     <div className="glass-card p-4 h-100 d-flex align-items-center justify-content-between">
                         <div>
                             <p className="text-muted small fw-bold text-uppercase mb-1">Assigned Students</p>
-                            <h2 className="fw-bold text-dark mb-0">42</h2>
+                            <h2 className="fw-bold text-dark mb-0">{stats.assignedStudents}</h2>
                         </div>
                         <div className="bg-soft-primary p-3 rounded-circle">
                             <Users size={28} className="text-primary" />
@@ -46,7 +173,7 @@ function MentorDashboard() {
                     <div className="glass-card p-4 h-100 d-flex align-items-center justify-content-between">
                         <div>
                             <p className="text-muted small fw-bold text-uppercase mb-1">Sessions Today</p>
-                            <h2 className="fw-bold text-dark mb-0">3</h2>
+                            <h2 className="fw-bold text-dark mb-0">{stats.sessionsToday}</h2>
                         </div>
                         <div className="bg-soft-info p-3 rounded-circle">
                             <Calendar size={28} className="text-info" />
@@ -57,7 +184,7 @@ function MentorDashboard() {
                     <div className="glass-card p-4 h-100 d-flex align-items-center justify-content-between">
                         <div>
                             <p className="text-muted small fw-bold text-uppercase mb-1">Pending Reports</p>
-                            <h2 className="fw-bold text-dark mb-0">5</h2>
+                            <h2 className="fw-bold text-dark mb-0">{stats.pendingReports}</h2>
                         </div>
                         <div className="bg-soft-warning p-3 rounded-circle">
                             <AlertCircle size={28} className="text-warning" />
@@ -92,12 +219,16 @@ function MentorDashboard() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {myStudents.map(student => (
+                                    {myStudents.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="5" className="text-center py-4 text-muted">No students assigned to you yet.</td>
+                                        </tr>
+                                    ) : myStudents.map(student => (
                                         <tr key={student.id} style={{ cursor: "pointer" }} onClick={() => navigate(`/student/${student.id}`)}>
                                             <td className="ps-4 fw-medium text-dark">
                                                 <div className="d-flex align-items-center gap-2">
                                                     <div className="rounded-circle bg-light border d-flex align-items-center justify-content-center text-muted fw-bold small" style={{ width: "32px", height: "32px" }}>
-                                                        {student.name.charAt(0)}
+                                                        {student.name.charAt(0).toUpperCase()}
                                                     </div>
                                                     {student.name}
                                                 </div>
@@ -139,38 +270,25 @@ function MentorDashboard() {
                     <div className="glass-card p-4 h-100">
                         <h6 className="fw-bold text-dark mb-4">Today's Schedule</h6>
 
-                        <div className="d-flex gap-3 mb-4">
-                            <div className="text-center">
-                                <div className="fw-bold text-dark">10:00</div>
-                                <div className="text-muted small">AM</div>
+                        {todaySchedule.length === 0 ? (
+                            <div className="text-center text-muted p-4">
+                                <Calendar size={48} className="opacity-25 mb-3 mx-auto" />
+                                <p className="mb-0">No sessions scheduled for today</p>
                             </div>
-                            <div className="card border-0 bg-primary text-white shadow-sm flex-grow-1 p-3">
-                                <div className="fw-bold mb-1">Weekly Review</div>
-                                <div className="small opacity-75">with Riya Patel</div>
-                            </div>
-                        </div>
-
-                        <div className="d-flex gap-3 mb-4">
-                            <div className="text-center">
-                                <div className="fw-bold text-dark">02:30</div>
-                                <div className="text-muted small">PM</div>
-                            </div>
-                            <div className="card border-0 bg-white border-start border-4 border-warning shadow-sm flex-grow-1 p-3">
-                                <div className="fw-bold mb-1 text-dark">Urgent Counseling</div>
-                                <div className="small text-muted">with Rohan Kumar</div>
-                            </div>
-                        </div>
-
-                        <div className="d-flex gap-3">
-                            <div className="text-center">
-                                <div className="fw-bold text-dark">04:00</div>
-                                <div className="text-muted small">PM</div>
-                            </div>
-                            <div className="card border-0 bg-white border-start border-4 border-info shadow-sm flex-grow-1 p-3">
-                                <div className="fw-bold mb-1 text-dark">Project Sync</div>
-                                <div className="small text-muted">with Group A</div>
-                            </div>
-                        </div>
+                        ) : (
+                            todaySchedule.map((session, index) => (
+                                <div className="d-flex gap-3 mb-4" key={index}>
+                                    <div className="text-center" style={{ minWidth: "45px" }}>
+                                        <div className="fw-bold text-dark">{session.timeStr}</div>
+                                        <div className="text-muted small">{session.ampm}</div>
+                                    </div>
+                                    <div className={`card border-0 ${session.isUrgent ? 'bg-white border-start border-4 border-danger' : 'bg-primary text-white'} shadow-sm flex-grow-1 p-3`}>
+                                        <div className={`fw-bold mb-1 ${session.isUrgent ? 'text-dark' : ''}`}>{session.topic}</div>
+                                        <div className={`small ${session.isUrgent ? 'text-muted' : 'opacity-75'}`}>with {session.studentName}</div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
 
                     </div>
                 </div>

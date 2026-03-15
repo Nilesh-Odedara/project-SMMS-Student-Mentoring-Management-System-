@@ -4,9 +4,10 @@ import { Navigate } from "react-router-dom";
 // Upgraded to support multiple allowed roles
 function RoleGuard({ allowedRoles, children }) {
   const userRole = localStorage.getItem("role");
+  const token = localStorage.getItem("accessToken");
 
-  // If no role is logged in, redirect to login
-  if (!userRole) {
+  // If no role or token is present, redirect to login
+  if (!userRole || !token) {
     return <Navigate to="/login" replace />;
   }
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { mentoringSessions, mentors, students } from "../data/dummyData";
+// import { mentoringSessions, mentors, students } from "../data/dummyData";
 
 function Reports() {
   const totalSessions = mentoringSessions.length;

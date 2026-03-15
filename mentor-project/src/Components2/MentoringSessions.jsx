@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../api";
 import {
   Calendar,
   Clock,
@@ -27,12 +28,17 @@ function MentoringSessions() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [sessionsRes, studentsRes] = await Promise.all([
-          fetch("http://localhost:3000/studentmentoring"),
-          fetch("http://localhost:3000/student")
+        const [sessionsRes, studentsRes, mappingsRes, staffRes] = await Promise.all([
+          api.get("/studentmentoring"),
+          api.get("/student"),
+          api.get("/studentmentor"),
+          api.get("/staff")
         ]);
-        const sessionsData = await sessionsRes.json();
-        const studentsData = await studentsRes.json();
+        
+        const sessionsData = sessionsRes.data;
+        const studentsData = studentsRes.data;
+        const mappingsData = mappingsRes.data;
+        const staffData = staffRes.data;
 
         // Build a map of studentId -> StudentName
         const studentsArr = Array.isArray(studentsData) ? studentsData : studentsData.student ? (Array.isArray(studentsData.student) ? studentsData.student : [studentsData.student]) : [];
@@ -41,17 +47,37 @@ function MentoringSessions() {
           studentMap[s.studentId] = s.StudentName;
         });
 
-        if (sessionsRes.ok && sessionsData.studentMentoring) {
-          const mapped = sessionsData.studentMentoring.map(s => ({
-            id: s._id,
-            studentName: studentMap[s.StudentMentorId] || `Student #${s.StudentMentorId}`,
-            mentorName: s.Description || "N/A",
-            date: s.DateOfMentoring ? new Date(s.DateOfMentoring).toLocaleDateString() : "N/A",
-            attendance: s.AttendanceStatus || "N/A",
-            stressLevel: s.StressLevel || "Low",
-            duration: "45m",
-            issues: s.IssuesDiscussed || "No issues recorded"
-          }));
+        // Build a map of StaffID -> StaffName
+        const staffArr = Array.isArray(staffData) ? staffData : staffData.staff ? (Array.isArray(staffData.staff) ? staffData.staff : [staffData.staff]) : [];
+        const mentorMap = {};
+        staffArr.forEach(s => {
+          mentorMap[s.StaffID] = s.StaffName;
+        });
+
+        // Build a map of StudentMentorId -> { studentId, staffId }
+        const mappingsArr = Array.isArray(mappingsData) ? mappingsData : mappingsData.studentMentor ? (Array.isArray(mappingsData.studentMentor) ? mappingsData.studentMentor : [mappingsData.studentMentor]) : [];
+        const mappingMap = {};
+        mappingsArr.forEach(m => {
+          mappingMap[m.StudentMentorId] = {
+             studentId: m.StudentId,
+             staffId: m.StaffId
+          };
+        });
+
+        if (sessionsData.studentMentoring) {
+          const mapped = sessionsData.studentMentoring.map(s => {
+            const mappingData = mappingMap[s.StudentMentorId];
+            return {
+              id: s._id,
+              studentName: mappingData && studentMap[mappingData.studentId] ? studentMap[mappingData.studentId] : `Student #${s.StudentMentorId}`,
+              mentorName: mappingData && mentorMap[mappingData.staffId] ? mentorMap[mappingData.staffId] : "Mentor",
+              date: s.DateOfMentoring ? new Date(s.DateOfMentoring).toLocaleDateString() : "N/A",
+              attendance: s.AttendanceStatus || "N/A",
+              stressLevel: s.StressLevel || "Low",
+              duration: "45m",
+              issues: s.IssuesDiscussed || "No issues recorded"
+            };
+          });
           setSessionsList(mapped);
         }
       } catch (err) {

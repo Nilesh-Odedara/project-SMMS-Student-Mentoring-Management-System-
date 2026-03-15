@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { students, mentoringSessions } from "../data/dummyData";
+// import { students, mentoringSessions } from "../data/dummyData";
 
 function MyStudent() {
   const navigate = useNavigate();

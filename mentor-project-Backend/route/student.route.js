@@ -3,7 +3,7 @@ const routeStu = express.Router()
 const Student = require("../model/student.model");
 const authMiddleware = require("../middleware/auth.middleware")
 
-// routeStu.use(authMiddleware)
+routeStu.use(authMiddleware)
 
 routeStu.get("/",async(req, res)=>{
     try{
@@ -33,16 +33,16 @@ routeStu.get("/:id",async (req, res) => {
 
 
 
-routeStu.post("/",async(req,res)=>{
-    try{
-        const {studentId,StudentName, EnrollmentNo,Password,MobileNo,EmailAddress,Description} = req.body;
+// routeStu.post("/",async(req,res)=>{
+//     try{
+//         const {studentId,StudentName, EnrollmentNo,Password,MobileNo,EmailAddress,Description} = req.body;
 
-        const student = await Student.create({studentId,StudentName, EnrollmentNo,Password,MobileNo,EmailAddress,Description})
-        res.status(200).json({message:"student added",student})
-    }catch(err){
-        res.status(400).json({err})
-    }
-})
+//         const student = await Student.create({studentId,StudentName, EnrollmentNo,Password,MobileNo,EmailAddress,Description})
+//         res.status(200).json({message:"student added",student})
+//     }catch(err){
+//         res.status(400).json({err})
+//     }
+// })
 
 
 

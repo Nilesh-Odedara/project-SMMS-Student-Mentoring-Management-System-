@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { mentoringSessions, mentors, students } from "../data/dummyData";
+import React, { useState, useEffect } from "react";
+import api from "../api";
 import {
   BarChart2,
   Download,
@@ -15,15 +15,53 @@ import {
 
 function Reports() {
   const [filterDept, setFilterDept] = useState("All");
+  
+  const [mentoringSessions, setMentoringSessions] = useState([]);
+  const [mentors, setMentors] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [sessionsRes, mentorsRes, studentsRes] = await Promise.all([
+          api.get("/studentmentoring"),
+          api.get("/staff"),
+          api.get("/student")
+        ]);
+        
+        const sessionsData = sessionsRes.data.studentMentoring || [];
+        const mentorsData = mentorsRes.data.staff || [];
+        let studentsData = [];
+        if (Array.isArray(studentsRes.data)) {
+          studentsData = studentsRes.data;
+        } else if (Array.isArray(studentsRes.data.student)) {
+          studentsData = studentsRes.data.student;
+        } else if (studentsRes.data.student) {
+          studentsData = [studentsRes.data.student];
+        }
+
+        setMentoringSessions(sessionsData);
+        setMentors(mentorsData);
+        setStudents(studentsData);
+      } catch (error) {
+        console.error("Failed to fetch reports data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const totalSessions = mentoringSessions.length;
-  const attendanceRate = Math.round((mentoringSessions.filter(s => s.attendance === "Present").length / totalSessions) * 100);
+  const presentCount = mentoringSessions.filter(s => s.AttendanceStatus === "Present" || s.AttendanceStatus === "Present").length;
+  const attendanceRate = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0;
 
   // Derived Data
   const stressCount = {
-    Low: mentoringSessions.filter((s) => s.stressLevel === "Low").length,
-    Medium: mentoringSessions.filter((s) => s.stressLevel === "Medium").length,
-    High: mentoringSessions.filter((s) => s.stressLevel === "High").length
+    Low: mentoringSessions.filter((s) => s.StressLevel === "Low").length,
+    Medium: mentoringSessions.filter((s) => s.StressLevel === "Medium").length,
+    High: mentoringSessions.filter((s) => s.StressLevel === "High").length
   };
 
   const monthlyData = [
@@ -37,6 +75,16 @@ function Reports() {
   const handlePrint = () => {
     window.print();
   };
+
+  if (loading) {
+    return (
+      <div className="container-fluid p-4 text-center">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container-fluid p-4">
@@ -81,7 +129,7 @@ function Reports() {
               </div>
             </div>
             <div className="d-flex align-items-center text-success small fw-bold">
-              <TrendingUp size={14} className="me-1" /> +12% <span className="text-muted fw-normal ms-1">vs last month</span>
+              <TrendingUp size={14} className="me-1" /> Active <span className="text-muted fw-normal ms-1">students</span>
             </div>
           </div>
         </div>
@@ -99,7 +147,7 @@ function Reports() {
               </div>
             </div>
             <div className="text-muted small">
-              <span className="text-dark fw-bold">100%</span> deployment rate
+              <span className="text-dark fw-bold">100%</span> active
             </div>
           </div>
         </div>
@@ -117,7 +165,7 @@ function Reports() {
               </div>
             </div>
             <div className="d-flex align-items-center text-success small fw-bold">
-              <TrendingUp size={14} className="me-1" /> +8 <span className="text-muted fw-normal ms-1">new this week</span>
+              <TrendingUp size={14} className="me-1" /> Logged <span className="text-muted fw-normal ms-1">sessions</span>
             </div>
           </div>
         </div>
@@ -186,7 +234,7 @@ function Reports() {
             <div className="d-flex flex-column justify-content-center h-75">
               {["Low", "Medium", "High"].map(level => {
                 const count = stressCount[level];
-                const pct = Math.round((count / totalSessions) * 100);
+                const pct = totalSessions > 0 ? Math.round((count / totalSessions) * 100) : 0;
                 const color = level === "High" ? "danger" : level === "Medium" ? "warning" : "success";
 
                 return (
@@ -204,7 +252,7 @@ function Reports() {
 
               <div className="alert alert-light border small text-muted mt-2">
                 <i className="bi bi-info-circle me-1"></i>
-                <strong> Insight:</strong> High stress cases have dropped by 5% since last month.
+                <strong> Insight:</strong> Stress levels tracked based on mentoring session reports.
               </div>
             </div>
           </div>
@@ -230,27 +278,27 @@ function Reports() {
             </thead>
             <tbody>
               {mentors.map(m => (
-                <tr key={m.id}>
+                <tr key={m._id || m.StaffID}>
                   <td className="ps-4">
                     <div className="d-flex align-items-center gap-3">
                       <div className="d-flex align-items-center justify-content-center rounded-circle bg-soft-primary text-primary fw-bold" style={{ width: "36px", height: "36px" }}>
-                        {m.name.charAt(0)}
+                        {(m.StaffName || m.name || "?").charAt(0)}
                       </div>
-                      <span className="fw-semibold text-dark">{m.name}</span>
+                      <span className="fw-semibold text-dark">{m.StaffName || m.name}</span>
                     </div>
                   </td>
-                  <td className="text-muted">{m.department} Lead</td>
+                  <td className="text-muted">{m.Department || m.department || "General"} Lead</td>
                   <td>
                     <div className="d-flex align-items-center gap-2">
                       <div className="progress flex-grow-1" style={{ height: "6px", width: "80px" }}>
-                        <div className="progress-bar bg-info" style={{ width: `${(m.totalStudents / 40) * 100}%` }}></div>
+                        <div className="progress-bar bg-info" style={{ width: `${((m.AssignStudents ? m.AssignStudents.length : 0) / 40) * 100}%` }}></div>
                       </div>
-                      <span className="small text-muted">{m.totalStudents}</span>
+                      <span className="small text-muted">{m.AssignStudents ? m.AssignStudents.length : 0}</span>
                     </div>
                   </td>
                   <td>
-                    <span className={`badge bg-${m.status === "Active" ? "success" : "secondary"}-subtle text-${m.status === "Active" ? "success" : "secondary"} border border-${m.status === "Active" ? "success" : "secondary"}-subtle`}>
-                      {m.status}
+                    <span className={`badge bg-${(m.Status || "Active") === "Active" ? "success" : "secondary"}-subtle text-${(m.Status || "Active") === "Active" ? "success" : "secondary"} border border-${(m.Status || "Active") === "Active" ? "success" : "secondary"}-subtle`}>
+                      {m.Status || m.status || "Active"}
                     </span>
                   </td>
                   <td className="pe-4 text-end text-warning fw-bold">
@@ -260,6 +308,11 @@ function Reports() {
               ))}
             </tbody>
           </table>
+          {mentors.length === 0 && (
+            <div className="text-center py-4 text-muted">
+              No mentors found
+            </div>
+          )}
         </div>
       </div>
 

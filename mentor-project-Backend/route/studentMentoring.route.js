@@ -2,8 +2,6 @@ const express = require("express");
 const router = express.Router();
 const StudentMentoring = require("../model/studentMentoring.model");
 
-
-
 router.post("/", async (req, res) => {
     try {
         const { StudentMentoringId, StudentMentorId, DateOfMentoring, ScheduledMeetingDate, NextMentoringDate, IssuesDiscussed, MentoringMeetingAgenda, AttendanceStatus, AbsentRemarks, IsParentPresent, ParentName, ParentMobileNo, StudentsOpinion, ParentsOpinion, StaffOpinion, StressLevel, LearnerType, MentoriongDocument, Description } = req.body

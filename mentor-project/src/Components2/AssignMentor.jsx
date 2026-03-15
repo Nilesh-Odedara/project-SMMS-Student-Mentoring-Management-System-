@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../api";
 
 // Reusable searchable dropdown (same pattern as AddMentoringSession)
 function SearchableDropdown({
@@ -179,19 +180,14 @@ function AssignMentor() {
     const fetchData = async () => {
       try {
         const [studentsRes, staffRes, assignmentsRes] = await Promise.all([
-          fetch("http://localhost:3000/student"),
-          fetch("http://localhost:3000/staff"),
-          fetch("http://localhost:3000/studentmentor"),
+          api.get("/student"),
+          api.get("/staff"),
+          api.get("/studentmentor"),
         ]);
 
-        if (!studentsRes.ok) throw new Error("Failed to fetch students");
-        if (!staffRes.ok) throw new Error("Failed to fetch mentors");
-        if (!assignmentsRes.ok)
-          throw new Error("Failed to fetch assignments");
-
-        const studentsData = await studentsRes.json();
-        const staffData = await staffRes.json();
-        const assignmentsData = await assignmentsRes.json();
+        const studentsData = studentsRes.data;
+        const staffData = staffRes.data;
+        const assignmentsData = assignmentsRes.data;
 
         setStudents(studentsData.student || studentsData.students || []);
         setMentors(staffData.staff || []);
@@ -256,18 +252,13 @@ function AssignMentor() {
         Description: formData.Description || "",
       };
 
-      const res = await fetch("http://localhost:3000/studentmentor", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const res = await api.post("/studentmentor", payload);
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || "Failed to assign mentor");
+      if (res.status !== 200 && res.status !== 201) {
+        throw new Error(res.data?.message || "Failed to assign mentor");
       }
 
-      const data = await res.json();
+      const data = res.data;
 
       setExistingAssignments((prev) => [
         ...prev,
@@ -292,8 +283,8 @@ function AssignMentor() {
   // Build dropdown options
   const studentOptions = students.map((s) => ({
     ...s,
-    _value: String(s.StudentId ?? s.studentId),
-    _label: `${s.StudentName || s.studentName || "N/A"} - ${s.EnrollmentNo || s.enrollmentNo || `ID: ${s.StudentId ?? s.studentId}`}`,
+    _value: String(s.StudentId ?? s.studentId ?? s._id),
+    _label: `${s.StudentName || s.studentName || "N/A"} - ${s.EnrollmentNo || s.enrollmentNo || `ID: ${s.StudentId ?? s.studentId ?? s._id}`}`,
   }));
 
   const mentorOptions = mentors.map((m) => ({

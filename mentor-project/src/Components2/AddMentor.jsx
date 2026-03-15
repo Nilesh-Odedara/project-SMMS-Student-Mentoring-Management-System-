@@ -197,6 +197,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import api from "../api";
 
 function AddMentor() {
   const navigate = useNavigate();
@@ -224,9 +225,9 @@ function AddMentor() {
     const fetchMentor = async () => {
       setFetchingData(true);
       try {
-        const res = await fetch(`http://localhost:3000/staff/${editId}`);
-        const data = await res.json();
-        if (res.ok && data.staff) {
+        const res = await api.get(`/staff/${editId}`);
+        const data = res.data;
+        if (data.staff) {
           const s = data.staff;
           setForm({
             StaffID: s.StaffID || "",
@@ -266,15 +267,16 @@ function AddMentor() {
         delete payload.Password;
       }
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+      let res;
+      if (isEditMode) {
+        res = await api.patch(url, payload);
+      } else {
+        res = await api.post(url, payload);
+      }
 
-      const data = await res.json();
+      const data = res.data;
 
-      if (!res.ok) {
+      if (res.status !== 200 && res.status !== 201) {
         throw new Error(data.error || data.message || (isEditMode ? "Failed to update mentor" : "Failed to add mentor"));
       }
 

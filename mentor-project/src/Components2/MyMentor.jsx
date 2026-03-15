@@ -324,6 +324,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import api from "../api";
 
 function MyMentor() {
   const navigate = useNavigate();
@@ -346,21 +347,20 @@ function MyMentor() {
       setLoading(true);
       try {
         // 1. Fetch mentor details by _id
-        const mentorRes = await fetch(`http://localhost:3000/staff/${id}`);
-        if (!mentorRes.ok) throw new Error("Failed to fetch mentor");
-        const mentorData = await mentorRes.json();
+        const mentorRes = await api.get(`/staff/${id}`);
+        const mentorData = mentorRes.data;
         const mentorObj = mentorData.staff;
         if (!mentorObj) throw new Error("Mentor not found");
         setMentor(mentorObj);
 
         // 2. Fetch student-mentor assignments and all students in parallel
         const [assignmentsRes, studentsRes] = await Promise.all([
-          fetch("http://localhost:3000/studentmentor"),
-          fetch("http://localhost:3000/student")
+          api.get("/studentmentor"),
+          api.get("/student")
         ]);
 
-        const assignmentsData = await assignmentsRes.json();
-        const studentsData = await studentsRes.json();
+        const assignmentsData = assignmentsRes.data;
+        const studentsData = studentsRes.data;
 
         const assignments = assignmentsData.studentMentor || [];
         const allStudents = studentsData.student
@@ -410,11 +410,11 @@ function MyMentor() {
     if (!window.confirm("Are you sure you want to delete this mentor? This action cannot be undone.")) return;
     setDeleting(true);
     try {
-      const res = await fetch(`http://localhost:3000/staff/${id}`, { method: "DELETE" });
-      if (res.ok) {
+      const res = await api.delete(`/staff/${id}`);
+      if (res.status === 200) {
         navigate("/mentors");
       } else {
-        const data = await res.json();
+        const data = res.data;
         alert(data.message || "Failed to delete mentor.");
       }
     } catch (err) {

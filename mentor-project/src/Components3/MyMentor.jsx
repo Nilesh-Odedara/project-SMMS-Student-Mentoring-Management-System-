@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { students, mentors } from "../data/dummyData";
+// import { students, mentors } from "../data/dummyData";
 
 function MyMentor() {
   const navigate = useNavigate();

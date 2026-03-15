@@ -17,7 +17,8 @@ const authMiddleware = (req, res, next) => {
             res.status(401).json({ message: "invalid authentication" })
         }
     } catch (err) {
-        res.status(500).json({ message: "internal server error" })
+        console.error("Auth Error:", err);
+        res.status(500).json({ message: "internal server error", error: err.message })
     }
 
 }

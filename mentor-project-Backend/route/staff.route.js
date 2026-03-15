@@ -3,7 +3,7 @@ const routeStaff = express.Router()
 const Staff = require("../model/staff.model");
 const authMiddleware = require("../middleware/auth.middleware")
 
-// routeStaff.use(authMiddleware)
+routeStaff.use(authMiddleware)
 
 routeStaff.get("/",async(req, res)=>{
     try{
@@ -33,16 +33,16 @@ routeStaff.get("/:id",async (req, res) => {
 
 
 
-routeStaff.post("/",async(req,res)=>{
-    try{
-        const {StaffID,StaffName, EnrollmentNo,Password,MobileNo,EmailAddress,Description} = req.body;
+// routeStaff.post("/",async(req,res)=>{
+//     try{
+//         const {StaffID,StaffName, EnrollmentNo,Password,MobileNo,EmailAddress,Description} = req.body;
 
-        const staff = await Staff.create({StaffID,StaffName, EnrollmentNo,Password,MobileNo,EmailAddress,Description})
-        res.status(200).json({message:"staff added",staff})
-    }catch(err){
-        res.status(400).json({err})
-    }
-})
+//         const staff = await Staff.create({StaffID,StaffName, EnrollmentNo,Password,MobileNo,EmailAddress,Description})
+//         res.status(200).json({message:"staff added",staff})
+//     }catch(err){
+//         res.status(400).json({err})
+//     }
+// })
 
 
 

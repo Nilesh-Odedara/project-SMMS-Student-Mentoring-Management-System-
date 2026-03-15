@@ -222,6 +222,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../api";
 import {
   Search,
   MoreVertical,
@@ -244,9 +245,9 @@ function Students() {
 
   // ===== FETCH STUDENTS =====
   useEffect(() => {
-    fetch("http://localhost:3000/student")
-      .then(res => res.json())
-      .then(data => {
+    api.get("/student")
+      .then(res => {
+        const data = res.data;
         const studentsArray = Array.isArray(data.student) ? data.student : [];
 
         const formatted = studentsArray.map(s => ({
@@ -312,11 +313,9 @@ function Students() {
   const handleArchive = async (id) => {
     if (window.confirm("Are you sure you want to delete this student?")) {
       try {
-        const res = await fetch(`http://localhost:3000/student/${id}`, {
-          method: "DELETE"
-        });
-        const data = await res.json();
-        if (res.ok) {
+        const res = await api.delete(`/student/${id}`);
+        const data = res.data;
+        if (res.status === 200) {
           setStudentList(studentList.filter(s => s.id !== id));
         } else {
           alert(data.message || "Failed to delete student.");
@@ -348,13 +347,9 @@ function Students() {
         MobileNo: Number(String(editForm.MobileNo).replace(/\D/g, "")),
         EmailAddress: editForm.EmailAddress
       };
-      const res = await fetch(`http://localhost:3000/student/${editStudent.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (res.ok) {
+      const res = await api.patch(`/student/${editStudent.id}`, payload);
+      const data = res.data;
+      if (res.status === 200) {
         setStudentList(studentList.map(s =>
           s.id === editStudent.id
             ? { ...s, name: editForm.StudentName, enrollment: String(editForm.EnrollmentNo), email: editForm.EmailAddress, mobile: String(editForm.MobileNo) }

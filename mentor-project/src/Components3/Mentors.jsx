@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { mentors } from "../data/dummyData";
+// import { mentors } from "../data/dummyData";
 import { useNavigate } from "react-router-dom";
 
 function Mentors() {

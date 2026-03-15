@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import api from "../api";
 import {
   ArrowLeft,
   User,
@@ -27,30 +28,48 @@ function ViewMentoringSession() {
   useEffect(() => {
     const fetchSession = async () => {
       try {
-        const [sessionRes, studentsRes] = await Promise.all([
-          fetch(`http://localhost:3000/studentmentoring/${id}`),
-          fetch("http://localhost:3000/student")
+        const [sessionRes, studentsRes, mappingsRes, staffRes] = await Promise.all([
+          api.get(`/studentmentoring/${id}`),
+          api.get("/student"),
+          api.get("/studentmentor"),
+          api.get("/staff")
         ]);
-        const sessionData = await sessionRes.json();
-        const studentsData = await studentsRes.json();
+        const sessionData = sessionRes.data;
+        const studentsData = studentsRes.data;
+        const mappingsData = mappingsRes.data;
+        const staffData = staffRes.data;
 
-        // Build student name map
-        const studentsArr = Array.isArray(studentsData)
-          ? studentsData
-          : studentsData.student
-            ? (Array.isArray(studentsData.student) ? studentsData.student : [studentsData.student])
-            : [];
+        // Build a map of studentId -> StudentName
+        const studentsArr = Array.isArray(studentsData) ? studentsData : studentsData.student ? (Array.isArray(studentsData.student) ? studentsData.student : [studentsData.student]) : [];
         const studentMap = {};
         studentsArr.forEach(s => {
           studentMap[s.studentId] = s.StudentName;
         });
 
-        if (sessionRes.ok && sessionData.studentMentoring) {
+        // Build a map of StaffID -> StaffName
+        const staffArr = Array.isArray(staffData) ? staffData : staffData.staff ? (Array.isArray(staffData.staff) ? staffData.staff : [staffData.staff]) : [];
+        const mentorMap = {};
+        staffArr.forEach(s => {
+          mentorMap[s.StaffID] = s.StaffName;
+        });
+
+        // Build a map of StudentMentorId -> { studentId, staffId }
+        const mappingsArr = Array.isArray(mappingsData) ? mappingsData : mappingsData.studentMentor ? (Array.isArray(mappingsData.studentMentor) ? mappingsData.studentMentor : [mappingsData.studentMentor]) : [];
+        const mappingMap = {};
+        mappingsArr.forEach(m => {
+          mappingMap[m.StudentMentorId] = {
+             studentId: m.StudentId,
+             staffId: m.StaffId
+          };
+        });
+
+        if (sessionData.studentMentoring) {
           const s = sessionData.studentMentoring;
+          const mappingData = mappingMap[s.StudentMentorId];
           setSession({
             id: s._id,
-            studentName: studentMap[s.StudentMentorId] || `Student #${s.StudentMentorId}`,
-            mentorName: s.Description || "N/A",
+            studentName: mappingData && studentMap[mappingData.studentId] ? studentMap[mappingData.studentId] : `Student #${s.StudentMentorId}`,
+            mentorName: mappingData && mentorMap[mappingData.staffId] ? mentorMap[mappingData.staffId] : "Mentor",
             date: s.DateOfMentoring ? new Date(s.DateOfMentoring).toLocaleDateString() : "N/A",
             attendance: s.AttendanceStatus || "N/A",
             stressLevel: s.StressLevel || "Low",
@@ -218,11 +237,11 @@ function ViewMentoringSession() {
               <button className="btn btn-outline-danger d-flex align-items-center justify-content-center" onClick={async () => {
                 if (!window.confirm("Are you sure you want to delete this session? This action cannot be undone.")) return;
                 try {
-                  const res = await fetch(`http://localhost:3000/studentmentoring/${session.id}`, { method: "DELETE" });
-                  if (res.ok) {
+                  const res = await api.delete(`/studentmentoring/${session.id}`);
+                  if (res.status === 200) {
                     navigate("/mentoring");
                   } else {
-                    const data = await res.json();
+                    const data = res.data;
                     alert(data.message || "Failed to delete session.");
                   }
                 } catch (err) {
